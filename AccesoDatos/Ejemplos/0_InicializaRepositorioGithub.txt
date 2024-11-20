@@ -1,0 +1,27 @@
+1. Inicializa un repositorio Git local
+Abre la terminal integrada en PyCharm y ejecuta el siguiente comando en la raíz de tu proyecto:
+
+git init
+Este comando inicializa un nuevo repositorio Git en tu proyecto, creando un directorio oculto llamado .git.
+
+2. Añade archivos al repositorio
+Después de inicializar Git, necesitas agregar tus archivos al área de preparación (staging area). Usa el siguiente comando:
+
+git add .
+Esto agregará todos los archivos del proyecto al repositorio local.
+
+3. Haz tu primer commit
+Realiza un commit inicial con el siguiente comando:
+
+git commit -m "Initial commit"
+Esto guarda los cambios en el historial de Git.
+
+4. Configura el repositorio remoto
+Ahora, puedes vincular tu repositorio local con GitHub usando el comando que intentaste antes:
+
+git remote add origin https://github.com/RuperTech9/PYTHON.git
+5. Sube los cambios a GitHub
+Sube tu proyecto a GitHub ejecutando:
+
+git branch -M main
+git push -u origin main
