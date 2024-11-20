@@ -1,5 +1,4 @@
 import peewee
-from peewee import DateTimeField
 import datetime
 
 # Configuración de la base de datos MySQL

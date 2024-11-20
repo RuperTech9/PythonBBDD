@@ -1,0 +1,27 @@
+DROP DATABASE IF EXISTS ejemplo;
+CREATE DATABASE ejemplo;
+USE ejemplo;
+
+CREATE TABLE departamentos (
+     dept_no TINYINT NOT NULL PRIMARY KEY,
+     dnombre VARCHAR(15),
+     loc VARCHAR(15)
+ );
+CREATE TABLE empleados (
+    emp_no INT NOT NULL PRIMARY KEY,
+    apellido VARCHAR(10),
+    oficio VARCHAR(10),
+    dir INT,
+    fecha_alt DATE,
+    salario FLOAT,
+    comision FLOAT,
+    dept_no INT NOT NULL REFERENCES departamentos (dept_no)
+);
+INSERT INTO departamentos VALUES (10, 'CONTABILIDAD', 'SEVILLA');
+INSERT INTO departamentos VALUES (20, 'INVESTIGACIÓN', 'MADRID');
+INSERT INTO departamentos VALUES (30, 'VENTAS', 'BARCELONA');
+INSERT INTO departamentos VALUES (40, 'PRODUCCIÓN', 'BILBAO');
+
+INSERT INTO empleados VALUES (7369, 'SANZ', 'EMPLEADO', 7902, '1990-12-17', 1040, NULL, 20);
+INSERT INTO empleados VALUES (7499, 'ARROYO', 'VENDEDOR', 7698, '1990-02-20', 1500, 390, 30);
+INSERT INTO empleados VALUES (7521, 'SALA', 'VENDEDOR', 7698, '1991-02-22', 1625, 650, 30);
