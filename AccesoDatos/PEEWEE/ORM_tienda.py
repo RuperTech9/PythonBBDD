@@ -208,7 +208,7 @@ query = (clientes
 for result in query.dicts():
     print(result)
 
-print("\n10. Visualizar código, nombre y localidad de los proveedores que suministran artículos de la zona centro")
+print("\n10. Visualizar código,  nombre y localidad de los proveedores que suministran artículos de la zona centro")
 query = (proveedores
          .select(
              proveedores.codigo_prov,
