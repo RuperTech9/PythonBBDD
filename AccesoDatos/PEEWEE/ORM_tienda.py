@@ -1,227 +1,270 @@
-import peewee
-import datetime
-
-from peewee import Database, SmallIntegerField, ForeignKeyField
+from peewee import *
 
 # Configuración de la base de datos MySQL
-database = peewee.MySQLDatabase(
+mysql_db = MySQLDatabase(
     "tienda",
     host='localhost',
     port=3306,
     user='ruper',
     password='A1a2A3a4A5',
-    charset='utf8mb4'  # Asegura compatibilidad con caracteres especiales
+    charset='utf8mb4')  # Asegura compatibilidad con caracteres especiales)
+
+# Configuración de la base de datos SQLite
+sqlite_db = SqliteDatabase('hospital.db')
+
+# Configuración de la base de datos PostgreSQL
+postgres_db = PostgresqlDatabase(
+    "tienda",
+    user="ruper",
+    password="A1a2A3a4A5",
+    host="localhost",
+    port=5432,  # Puerto por defecto de PostgreSQL
 )
 
-class clientes(peewee.Model):
-    codigo_cli = peewee.IntegerField(primary_key=True)
-    nombre = peewee.CharField()
-    localidad = peewee.CharField()
-    tlf = peewee.CharField()
+# Clase base para asociar todos los modelos a la misma base de datos
+class BaseModel(Model):
+    class Meta: database = mysql_db  # Asociar la base de datos configurada
+
+class clientes(BaseModel):
+    codigo_cli = SmallIntegerField(primary_key=True)
+    nombre = CharField(max_length=20)
+    localidad = CharField(max_length=15)
+    tlf = CharField(max_length=10)
 
     class Meta:
-        database = database
-        db_table = 'clientes'
+        table_name = 'clientes'
 
-class proveedores(peewee.Model):
-    codigo_prov = peewee.SmallIntegerField(primary_key=True)
-    nombre = peewee.CharField()
-    localidad = peewee.CharField()
-    fecha_alta = peewee.DateTimeField
+class proveedores(BaseModel):
+    codigo_prov = SmallIntegerField(primary_key=True)
+    nombre = CharField()
+    localidad = CharField()
+    fecha_alta = DateTimeField()
+    comision = FloatField()
 
     class Meta:
-        database = database
-        db_table = 'proveedores'
+        table_name = 'proveedores'
 
-class articulos(peewee.Model):
-    codarticulo = peewee.SmallIntegerField(primary_key=True)
-    denominacion  = peewee.CharField()
-    precio = peewee.FloatField()
+class articulos(BaseModel):
+    codarticulo = SmallIntegerField(primary_key=True)
+    denominacion  = CharField()
+    precio = FloatField()
     stock = SmallIntegerField()
-    zona = peewee.CharField()
+    zona = CharField()
     codigo_prov = ForeignKeyField(proveedores, backref='articulos', column_name='codigo_prov')
 
     class Meta:
-        database = database
-        db_table = 'articulos'
+        table_name = 'articulos'
 
-class compras(peewee.Model):
-    numcompra = peewee.SmallIntegerField(primary_key=True)
-    fechacompra = peewee.DateTimeField()
+class compras(BaseModel):
+    numcompra = SmallIntegerField(primary_key=True)
+    fechacompra = DateTimeField()
     codigo_cli = ForeignKeyField(clientes, backref='compras', column_name='codigo_cli' )
 
     class Meta:
-        database = database
         table_name = 'compras'
 
 # Modelo de detalle de compras
-class detallecompras(peewee.Model):
-    numcompra = ForeignKeyField(compras, backref='detalles', column_name='numcompra')
-    codarticulo = ForeignKeyField(articulos, backref='detalles', column_name='codarticulo')
-    unidades = peewee.SmallIntegerField()
+class detallecompras(BaseModel):
+    numcompra = ForeignKeyField(compras, backref='detallecompras', column_name='numcompra')
+    codarticulo = ForeignKeyField(articulos, backref='detallecompras', column_name='codarticulo')
+    unidades = SmallIntegerField()
 
     class Meta:
-        database = database
         table_name = 'detallecompras'
-        primary_key = peewee.CompositeKey('numcompra', 'codarticulo')
+        primary_key = CompositeKey('numcompra', 'codarticulo')
+
+
+
 
 # Conectar a la base de datos
-database.connect()
+mysql_db.connect()
 
-# Consulta de ejemplo: Obtener los datos de los clientes y sus compras
-print("\n1. Obtener los datos de los clientes y sus compras")
-query = (clientes
-         .select(clientes, compras)
-         .join(compras, peewee.JOIN.LEFT_OUTER, on=(clientes.codigo_cli == compras.codigo_cli)))
+# Consulta para obtener los datos de los proveedores
+query = proveedores.select()
+print("\n1- Datos de los proveedores:")
+for proveedor in query:
+    print(
+        "Código Proveedor: ", proveedor.codigo_prov,
+        "Nombre: ", proveedor.nombre,
+        "Localidad: ", proveedor.localidad,
+        "Fecha Alta: ", proveedor.fecha_alta,
+        "Comisión: ", proveedor.comision
+    )
+# -------------------------------------------------------------------------------------------------------------
+# Consulta para obtener los datos de los clientes y sus compras
+query = (
+    clientes
+    .select()
+    .join(compras, JOIN.LEFT_OUTER, on=(clientes.codigo_cli == compras.codigo_cli))
+)
+print("\n2- Datos de los clientes y sus compras:")
+for cliente in query:
+    for compra in cliente.compras:
+        print(
+            "Código Cliente:", cliente.codigo_cli,
+            "Nombre:", cliente.nombre,
+            "Localidad:", cliente.localidad,
+            "Teléfono:", cliente.tlf,
+            "Número Compra:", compra.numcompra,
+            "Fecha Compra:", compra.fechacompra
+        )
+# -------------------------------------------------------------------------------------------------------------
+# Consulta para obtener el detalle de compras por cliente
+query = (
+    clientes
+    .select()
+    .join(compras, JOIN.LEFT_OUTER, on=(clientes.codigo_cli == compras.codigo_cli))
+)
+print("\n3- Datos de los clientes, sus compras, detalles de compras y precios de artículos:")
+for cliente in query:
+    for compra in cliente.compras:  # Relación de cliente con sus compras
+        for detalle in compra.detallecompras:  # Relación de compra con sus detalles
+            print(
+                "Código Cliente:", cliente.codigo_cli,
+                "Nombre:", cliente.nombre,
+                "Localidad:", cliente.localidad,
+                "Número Compra:", compra.numcompra,
+                "Código Artículo:", detalle.codarticulo.codarticulo,
+                "Unidades Compradas:", detalle.unidades,
+                "Precio Artículo:", detalle.codarticulo.precio,
+                "Importe:", detalle.unidades * detalle.codarticulo.precio
+            )
+# -------------------------------------------------------------------------------------------------------------
+# Consulta para obtener el total de compra de cada cliente
+query = (
+    clientes
+    .select()
+    .join(compras, JOIN.LEFT_OUTER, on=(clientes.codigo_cli == compras.codigo_cli))
+    .group_by(clientes.codigo_cli, compras.numcompra)
+)
+print("\n4- Total de compra por cliente:")
+for cliente in query:
+    for compra in cliente.compras:  # Relación de cliente con sus compras
+        total_compra = 0
+        for detalle in compra.detallecompras:  # Relación de compra con sus detalles
+            total_compra+= detalle.unidades * detalle.codarticulo.precio
+            print(
+                "Código Cliente:", cliente.codigo_cli,
+                "Nombre:", cliente.nombre,
+                "Localidad:", cliente.localidad,
+                "Número de Compra:", compra.numcompra,
+                "Importe Total:", total_compra
+            )
+# -------------------------------------------------------------------------------------------------------------
+# Consulta para obtener el total de compra de cada cliente y el número de compras
+query = (
+    clientes
+    .select()
+    .join(compras, JOIN.LEFT_OUTER, on=(clientes.codigo_cli == compras.codigo_cli))
+    .group_by(clientes.codigo_cli, compras.numcompra)
+)
+print("\n5- Total de compras por cada cliente:")
+for cliente in query:
+    for compra in cliente.compras:  # Relación de cliente con sus compras
+        total_compra = 0
+        numero_compras = 0
+        for detalle in compra.detallecompras:  # Relación de compra con sus detalles
+            numero_compras += 1
+            total_compra+= detalle.unidades * detalle.codarticulo.precio
+            print(
+                "Código Cliente:", cliente.codigo_cli,
+                "Nombre:", cliente.nombre,
+                "Localidad:", cliente.localidad,
+                "Telefono:", cliente.tlf,
+                "Número de Compras:", numero_compras,
+                "Importe Total:", total_compra
+            )
+# -------------------------------------------------------------------------------------------------------------
+# Consulta para obtener los datos de los artículos, sus compras y proveedores
+query = (
+    articulos
+    .select()
+    .join(detallecompras, JOIN.LEFT_OUTER, on=(articulos.codarticulo == detallecompras.codarticulo))
+    .join(proveedores, JOIN.LEFT_OUTER, on=(articulos.codigo_prov == proveedores.codigo_prov))
+)
+print("\n6- Artículos, unidades compradas, importe y proveedor:")
+for articulo in query:
+    total_unidades = 0
+    total_importe = 0
 
-for result in query.dicts():
-    print(result)
+    # Iterar sobre los detalles de compras relacionados con el artículo
+    for detalle in articulo.detallecompras:  # Relación de artículos con detalle de compras
+        total_unidades += detalle.unidades
+        total_importe += detalle.unidades * articulo.precio
 
-print("\n2. Obtener lo mismo que en la pregunta 1, visualizando código de cliente, nombre, localidad, número de compra y fecha de compra (mostrando 0 para clientes sin compras).")
-query = (clientes
-         .select(
-             clientes.codigo_cli,
-             clientes.nombre,
-             clientes.localidad,
-             peewee.fn.COALESCE(compras.numcompra, 0).alias('numcompra'),
-             compras.fechacompra
-         )
-         .join(compras, peewee.JOIN.LEFT_OUTER, on=(clientes.codigo_cli == compras.codigo_cli)))
-
-for result in query.dicts():
-    print(result)
-
-print("\n3. Obtener por cada cliente el detalle de compras realizado")
-query = (clientes
-         .select(
-             clientes.codigo_cli,
-             clientes.nombre,
-             clientes.localidad,
-             compras.numcompra,
-             detallecompras.codarticulo,
-             detallecompras.unidades,
-             articulos.precio,
-             (detallecompras.unidades * articulos.precio).alias('importe')
-         )
-         .join(compras, on=(clientes.codigo_cli == compras.codigo_cli))
-         .join(detallecompras, on=(compras.numcompra == detallecompras.numcompra))
-         .join(articulos, on=(detallecompras.codarticulo == articulos.codarticulo)))
-
-for result in query.dicts():
-    print(result)
-
-print("\n4. Obtener el total de compra de cada cliente")
-query = (clientes
-         .select(
-             clientes.codigo_cli,
-             clientes.nombre,
-             clientes.localidad,
-             compras.numcompra,
-             peewee.fn.SUM(detallecompras.unidades * articulos.precio).alias('importe_total')
-         )
-         .join(compras, on=(clientes.codigo_cli == compras.codigo_cli))
-         .join(detallecompras, on=(compras.numcompra == detallecompras.numcompra))
-         .join(articulos, on=(detallecompras.codarticulo == articulos.codarticulo))
-         .group_by(clientes.codigo_cli, compras.numcompra))
-
-for result in query.dicts():
-    print(result)
-
-print("\n5. Obtener el total de las compras de cada cliente y el número de compras realizadas")
-query = (clientes
-         .select(
-             clientes.codigo_cli,
-             clientes.nombre,
-             clientes.localidad,
-             clientes.tlf,
-             peewee.fn.COUNT(compras.numcompra).alias('total_compras'),
-             peewee.fn.COALESCE(peewee.fn.SUM(detallecompras.unidades * articulos.precio), 0).alias('importe_total')
-         )
-         .join(compras, peewee.JOIN.LEFT_OUTER, on=(clientes.codigo_cli == compras.codigo_cli))
-         .join(detallecompras, peewee.JOIN.LEFT_OUTER, on=(compras.numcompra == detallecompras.numcompra))
-         .join(articulos, peewee.JOIN.LEFT_OUTER, on=(detallecompras.codarticulo == articulos.codarticulo))
-         .group_by(clientes.codigo_cli))
-
-for result in query.dicts():
-    print(result)
-
-print("\n6. Obtener para cada artículo las unidades compradas por los clientes, el importe y el nombre de su proveedor. Se deben visualizar los artículos sin compras.")
-query = (articulos
-         .select(
-             articulos.codarticulo,
-             articulos.denominacion,
-             articulos.stock,
-             articulos.precio,
-             peewee.fn.COALESCE(peewee.fn.SUM(detallecompras.unidades), 0).alias('unidades_compradas'),
-             peewee.fn.COALESCE(peewee.fn.SUM(detallecompras.unidades * articulos.precio), 0).alias('importe'),
-             proveedores.nombre.alias('nombre_proveedor')
-         )
-         .join(proveedores, on=(articulos.codigo_prov == proveedores.codigo_prov))
-         .join(detallecompras, peewee.JOIN.LEFT_OUTER, on=(articulos.codarticulo == detallecompras.codarticulo))
-         .group_by(articulos.codarticulo, articulos.denominacion, articulos.stock, articulos.precio, proveedores.nombre))
-
-for result in query.dicts():
-    print(result)
-
-print("\n7. Obtener para cada proveedor los artículos que suministra")
-query = (proveedores
-         .select(
-             proveedores.codigo_prov,
-             proveedores.nombre,
-             articulos.codarticulo,
-             articulos.denominacion
-         )
-         .join(articulos, on=(proveedores.codigo_prov == articulos.codigo_prov)))
-
-for result in query.dicts():
-    print(result)
-
-print("\n8. Visualizar por cada proveedor el número de artículos que suministra")
-query = (proveedores
-         .select(
-             proveedores.codigo_prov,
-             proveedores.nombre,
-             peewee.fn.COUNT(articulos.codarticulo).alias('num_articulos')
-         )
-         .join(articulos, peewee.JOIN.LEFT_OUTER, on=(proveedores.codigo_prov == articulos.codigo_prov))
-         .group_by(proveedores.codigo_prov, proveedores.nombre))
-
-for result in query.dicts():
-    print(result)
-
-print("\n9. Visualizar el código de cliente, nombre y localidad de los clientes de Talavera que compraron artículos de la zona Centro")
-query = (clientes
-         .select(
-             clientes.codigo_cli,
-             clientes.nombre,
-             clientes.localidad
-         )
-         .join(compras, on=(clientes.codigo_cli == compras.codigo_cli))
-         .join(detallecompras, on=(compras.numcompra == detallecompras.numcompra))
-         .join(articulos, on=(detallecompras.codarticulo == articulos.codarticulo))
-         .where(
-             (clientes.localidad == 'Barcelona') &
-             (articulos.zona == 'Zona B')
-         )
-         .distinct())
-
-for result in query.dicts():
-    print(result)
-
-print("\n10. Visualizar código,  nombre y localidad de los proveedores que suministran artículos de la zona centro")
-query = (proveedores
-         .select(
-             proveedores.codigo_prov,
-             proveedores.nombre,
-             proveedores.localidad
-         )
-         .join(articulos, on=(proveedores.codigo_prov == articulos.codigo_prov))
-         .where(articulos.zona == 'Zona A')
-         .distinct())
-
-for result in query.dicts():
-    print(result)
-
+    print(
+        "Código Artículo:", articulo.codarticulo,
+        "Denominación:", articulo.denominacion,
+        "Stock:", articulo.stock,
+        "Precio:", articulo.precio,
+        "Unidades Compradas:", total_unidades,
+        "Importe Total de Compras:", total_importe,
+        "Proveedor:", articulo.codigo_prov.nombre if articulo.codigo_prov else "Sin Proveedor"
+    )
+# -------------------------------------------------------------------------------------------------------------
+# Consulta para obtener el total de compra de cada cliente y el número de compras
+query = (
+    proveedores
+    .select()
+    .join(articulos, JOIN.LEFT_OUTER, on=(proveedores.codigo_prov == articulos.codigo_prov))
+    .group_by(proveedores.codigo_prov, articulos.denominacion)
+)
+print("\n7- Artículos suministrados por cada proveedor:")
+for proveedor in query:
+    for articulo in proveedor.articulos:  # Relación de cliente con sus compras
+        print(
+            "Código proveedor:", proveedor.codigo_prov,
+            "Nombre:", proveedor.nombre,
+            "Codigo Articulo:", articulo.codarticulo,
+            "Denominacion:", articulo.denominacion
+        )
+# -------------------------------------------------------------------------------------------------------------
+# Consulta para obtener el número de artículos suministrados por cada proveedor
+query = (
+    proveedores
+    .select(proveedores.codigo_prov, proveedores.nombre, fn.COUNT(articulos.codarticulo).alias('numero_articulos'))
+    .join(articulos, JOIN.LEFT_OUTER, on=(proveedores.codigo_prov == articulos.codigo_prov))
+    .group_by(proveedores.codigo_prov)
+)
+print("\n8- Número de artículos suministrados por cada proveedor:")
+for proveedor in query:
+    print(
+        "Código Proveedor:", proveedor.codigo_prov,
+        "Nombre:", proveedor.nombre,
+        "Número de Artículos Suministrados:", proveedor.numero_articulos
+    )
+# -------------------------------------------------------------------------------------------------------------
+# Consulta para obtener clientes de Talavera que compraron artículos de la Zona A
+query = (
+    clientes
+    .select(clientes.codigo_cli, clientes.nombre, clientes.localidad)
+    .join(compras, JOIN.INNER, on=(clientes.codigo_cli == compras.codigo_cli))
+    .join(detallecompras, JOIN.INNER, on=(compras.numcompra == detallecompras.numcompra))
+    .join(articulos, JOIN.INNER, on=(detallecompras.codarticulo == articulos.codarticulo))
+    .where((clientes.localidad == "Madrid") & (articulos.zona == "Zona A"))
+)
+print("\n9- Clientes de Madrid que compraron artículos de la Zona A:")
+for cliente in query:
+    print(
+        "Código Cliente:", cliente.codigo_cli,
+        "Nombre:", cliente.nombre,
+        "Localidad:", cliente.localidad
+    )
+# -------------------------------------------------------------------------------------------------------------
+# Consulta para obtener los proveedores que suministran artículos de la zona Centro
+query = (
+    proveedores
+    .select(proveedores.codigo_prov, proveedores.nombre, proveedores.localidad)
+    .join(articulos, JOIN.INNER, on=(proveedores.codigo_prov == articulos.codigo_prov))
+    .where(articulos.zona == "Zona A")
+)
+print("\n10- Proveedores que suministran artículos de la Zona A:")
+for proveedor in query:
+    print(
+        "Código Proveedor:", proveedor.codigo_prov,
+        "Nombre:", proveedor.nombre,
+        "Localidad:", proveedor.localidad
+    )
 
 # Cerrar la conexión
-database.close()
+mysql_db.close()

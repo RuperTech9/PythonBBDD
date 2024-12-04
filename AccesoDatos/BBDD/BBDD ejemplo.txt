@@ -17,6 +17,7 @@ CREATE TABLE empleados (
     comision FLOAT,
     dept_no INT NOT NULL REFERENCES departamentos (dept_no)
 );
+
 INSERT INTO departamentos VALUES (10, 'CONTABILIDAD', 'SEVILLA');
 INSERT INTO departamentos VALUES (20, 'INVESTIGACIÓN', 'MADRID');
 INSERT INTO departamentos VALUES (30, 'VENTAS', 'BARCELONA');
