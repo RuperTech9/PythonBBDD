@@ -1,0 +1,5 @@
+PWIZ
+pip install peewee
+
+python -m pwiz -e mysql -u ruper -P 3306 -H localhost tienda > ORM_tienda.py    
+Password:
