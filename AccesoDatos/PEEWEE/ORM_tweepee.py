@@ -94,12 +94,10 @@ def ver_relaciones():
     print("\nRelaciones de usuarios:")
     for user in User.select():
         print(f"\nUsuario: {user.username}")
-        print("  Sigue a:")
         for following in user.following():
-            print(f"    {following.username}")
-        print("  Seguidores:")
+            print(f"Sigue a: {following.username}")
         for follower in user.followers():
-            print(f"    {follower.username}")
+            print(f"Seguidores: {follower.username}")
 # ----------------------------------------------------------------------------------------------------------------------
 def ver_mensajes():
     print("\nMensajes publicados por los usuarios (ordenados de más nuevo a más viejo):")
@@ -120,16 +118,31 @@ def ver_favoritos():
               f"Tweet: {favorite.tweet.content}, "
               f"Autor del Tweet: {favorite.tweet.user.username}")
 # ----------------------------------------------------------------------------------------------------------------------
+def ver_favoritos2():
+    print("\nFavoritos en la base de datos:")
+    query = (Message
+             .select(Message.content, fn.COUNT(Favorite.id).alias('count'))
+             .join_from(Message, User)  # Join tweet -> user.
+             .join_from(Message, Favorite, JOIN.LEFT_OUTER)  # Join tweet -> favorite.
+             .where(User.username == 'alice')
+             .group_by(Message.content))
+
+    for messages in Message.select():
+        print(messages.user.username, '->', messages.content)
+
+
+
+
 database.connect()
 
 # Crear tablas si no existen
-database.create_tables([User, Relationship, Message, Favorite])
-insert_data()
+
 
 ver_usuarios()
 ver_relaciones()
 ver_mensajes()
 ver_favoritos()
+ver_favoritos2()
 
 database.close()
 

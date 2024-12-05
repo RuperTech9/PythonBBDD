@@ -1,7 +1,8 @@
 from peewee import *
+from datetime import datetime
 
 # Configuración de la base de datos MySQL
-mysql_db = MySQLDatabase(
+database = MySQLDatabase(
     "tienda",
     host='localhost',
     port=3306,
@@ -23,7 +24,7 @@ postgres_db = PostgresqlDatabase(
 
 # Clase base para asociar todos los modelos a la misma base de datos
 class BaseModel(Model):
-    class Meta: database = mysql_db  # Asociar la base de datos configurada
+    class Meta: database = database  # Asociar la base de datos configurada
 
 class clientes(BaseModel):
     codigo_cli = SmallIntegerField(primary_key=True)
@@ -77,7 +78,7 @@ class detallecompras(BaseModel):
 
 
 # Conectar a la base de datos
-mysql_db.connect()
+database.connect()
 
 # Consulta para obtener los datos de los proveedores
 query = proveedores.select()
@@ -266,5 +267,116 @@ for proveedor in query:
         "Localidad:", proveedor.localidad
     )
 
+
+# Obtener todas las compras con detalles de cliente, artículos y proveedor
+query = (compras
+    .select(
+        compras.numcompra,
+        compras.fechacompra,
+        clientes.nombre.alias('cliente_nombre'),
+        articulos.denominacion.alias('articulo_nombre'),
+        articulos.precio,
+        detallecompras.unidades,
+        proveedores.nombre.alias('proveedor_nombre'),
+        proveedores.localidad.alias('proveedor_localidad')
+    )
+    .join(clientes, on=(compras.codigo_cli == clientes.codigo_cli))  # Relación compras-clientes
+    .switch(compras)
+    .join(detallecompras, on=(compras.numcompra == detallecompras.numcompra))  # Relación compras-detallecompras
+    .join(articulos, on=(detallecompras.codarticulo == articulos.codarticulo))  # Relación detallecompras-articulos
+    .join(proveedores, on=(articulos.codigo_prov == proveedores.codigo_prov))  # Relación articulos-proveedores
+)
+
+# Mostrar resultados
+for compra in query.dicts():
+    print(compra)
+
+
+# Obtener las compras realizadas por un cliente específico
+codigo_cliente = 1
+
+# Consulta para compras de un cliente
+query = (compras
+    .select(
+        compras.numcompra,
+        compras.fechacompra,
+        detallecompras.unidades,
+        articulos.denominacion.alias('articulo_nombre'),
+        articulos.precio,
+        proveedores.nombre.alias('proveedor_nombre')
+    )
+    .join(clientes, on=(compras.codigo_cli == clientes.codigo_cli))
+    .switch(compras)
+    .join(detallecompras, on=(compras.numcompra == detallecompras.numcompra))
+    .join(articulos, on=(detallecompras.codarticulo == articulos.codarticulo))
+    .join(proveedores, on=(articulos.codigo_prov == proveedores.codigo_prov))
+    .where(clientes.codigo_cli == codigo_cliente)
+)
+# Mostrar resultados
+for compra in query.dicts():
+    print(compra)
+
+
+# Listar todos los artículos con su proveedor y las unidades vendidas
+query = (articulos
+    .select(
+        articulos.codarticulo,
+        articulos.denominacion,
+        articulos.precio,
+        articulos.stock,
+        proveedores.nombre.alias('proveedor_nombre'),
+        proveedores.localidad.alias('proveedor_localidad'),
+        fn.SUM(detallecompras.unidades).alias('total_unidades_vendidas')
+    )
+    .join(proveedores, on=(articulos.codigo_prov == proveedores.codigo_prov))
+    .switch(articulos)
+    .join(detallecompras, JOIN.LEFT_OUTER, on=(articulos.codarticulo == detallecompras.codarticulo))
+    .group_by(articulos.codarticulo, proveedores.codigo_prov)
+)
+
+# Mostrar resultados
+for articulo in query.dicts():
+    print(articulo)
+
+
+# Obtener el historial de compras y los detalles de un artículo específico
+codigo_articulo = 101
+# Consulta para el historial de compras de un artículo
+historial_articulo = (detallecompras
+    .select(
+        compras.numcompra,
+        compras.fechacompra,
+        clientes.nombre.alias('cliente_nombre'),
+        detallecompras.unidades,
+        articulos.denominacion.alias('articulo_nombre'),
+        proveedores.nombre.alias('proveedor_nombre')
+    )
+    .join(articulos, on=(detallecompras.codarticulo == articulos.codarticulo))
+    .join(compras, on=(detallecompras.numcompra == compras.numcompra))
+    .join(clientes, on=(compras.codigo_cli == clientes.codigo_cli))
+    .join(proveedores, on=(articulos.codigo_prov == proveedores.codigo_prov))
+    .where(articulos.codarticulo == codigo_articulo)
+)
+
+# Mostrar resultados
+for detalle in historial_articulo.dicts():
+    print(detalle)
+
+# Consulta para proveedores y artículos con orden por comisión
+proveedores_articulos = (proveedores
+    .select(
+        proveedores.nombre.alias('proveedor_nombre'),
+        proveedores.comision,
+        articulos.denominacion.alias('articulo_nombre'),
+        articulos.precio
+    )
+    .join(articulos, on=(proveedores.codigo_prov == articulos.codigo_prov))
+    .order_by(proveedores.comision.desc())
+)
+
+# Mostrar resultados
+for proveedor in proveedores_articulos.dicts():
+    print(proveedor)
+
 # Cerrar la conexión
-mysql_db.close()
+database.close()
